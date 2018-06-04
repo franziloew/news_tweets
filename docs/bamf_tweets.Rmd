@@ -5,7 +5,6 @@ output: html_document
 
 ```{r message=FALSE, warning=FALSE}
 library(rtweet)
-library(plotly)
 library(dplyr)
 library(ggplot2)
 library(rvest)

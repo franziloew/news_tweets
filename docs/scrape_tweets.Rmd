@@ -20,6 +20,9 @@ library(tidyr)
 library(wordcloud2)
 library(webshot)
 library(htmlwidgets)
+library(igraph)
+library(stringr)
+library(network)
 
 rm(list = ls())
 knitr::opts_chunk$set(message=FALSE, warning=FALSE)
@@ -32,10 +35,10 @@ linebreak <- function(s) {
 Mycol <- RColorBrewer::brewer.pal(8, "Dark2")
 ```
 
+## Start 
 ```{r eval=FALSE, include=FALSE}
 rt <- search_tweets("filter:news AND lang:de", 
-                    n=15000, 
-                    include_rts = F)
+                    n=15000)
 
 save(rt, file = paste0("../data/", 
                        Sys.Date(),".Rda"))
@@ -50,10 +53,9 @@ load("../data/2018-06-04.Rda")
 colnames(rt)
 ```
 
-Die Tweets wurden im folgenden Zeitraum gesendet: 
-
+## Zeitraum
 ```{r fig.width=10}
-ts_plot(rt,"5 minutes") +
+ts_plot(rt,"1 minute") +
   theme(plot.title = element_text(face = "bold")) +
   labs(
     x = NULL, y = NULL,
@@ -62,31 +64,19 @@ ts_plot(rt,"5 minutes") +
   )
 ```
 
-
-### Welche Tweets wurden in diesem Zeitraum am häufigsten geteilt?
+### Welche Tweets wurden am häufigsten geteilt?
 
 Die top 20 sind: 
 ```{r}
 rt %>%
+  filter(is_retweet == FALSE ) %>%
   dplyr::select(screen_name, text, retweet_count) %>%
   group_by(screen_name, text) %>%
   summarise(retweet_count = sum(retweet_count)) %>%
   arrange(desc(retweet_count)) %>%
   .[1:20,] %>%
   htmlTable::htmlTable(align="l")
-```
-
-### Welche Tweets wurde am meisten favorisiert? 
-
-Top 20:
-```{r}
-rt %>%
-  dplyr::select(screen_name, text, favorite_count) %>%
-  group_by(screen_name, text) %>%
-  summarise(favorite_count = sum(favorite_count)) %>%
-  arrange(desc(favorite_count)) %>%
-  .[1:20,] %>%
-  htmlTable::htmlTable(align="l")
+  
 ```
 
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE}
@@ -107,6 +97,8 @@ name_table %>%
   ) 
 ```
 
+## Hashtags
+
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE}
 rt$hashtags %>%
   unlist() %>%
@@ -119,7 +111,6 @@ colnames(hash_table) <- c("hashtag", "count")
 
 hash_table %>%
   top_n(50, count) %>%
-  filter(!grepl("bamf",hashtag, ignore.case = T)) %>%
   ggplot( aes(reorder(hashtag,count), count)) +
   geom_col(fill = Mycol[1], alpha = 0.6) +
   coord_flip() +
@@ -130,6 +121,13 @@ hash_table %>%
     subtitle = "...die im Zusammenhang mit einem Nachrichten-Tweet verwendet wurden"
   ) 
 ```
+
+### Hashtag Wordcloud
+```{r}
+wordcloud2(hash_table, size = 1)
+```
+
+## Nutzer
 
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE}
 rt$mentions_screen_name %>%
@@ -152,6 +150,38 @@ mentions_table %>%
     title = "Top 50 Profil Nennungen...",
     subtitle = "...die im Zusammenhang mit einem Nachrichten-Tweet verwendet wurden"
   ) 
+```
+
+### User-Netzwerk
+
+```{r}
+rt <- rt %>%
+  mutate(poster = str_extract(text,"(RT|via)((?:\\b\\W*@\\w+)+)"),
+         who_post = gsub("(RT @|via @)", "", poster, ignore.case=TRUE))
+
+# two column matrix of edges
+el <- rt %>%
+  filter(is_retweet == TRUE) %>%
+  select(screen_name, who_post) %>%
+  filter(!grepl("@", who_post)) %>%
+  count(who_post, screen_name) %>%
+  filter(
+    nchar(as.character(who_post))>0 &
+      nchar(as.character(screen_name))>0 &
+      n > 2
+  )
+```
+
+```{r fig.height=10, fig.width=10}
+rt_graph <- graph_from_data_frame(d=el, directed=T)
+
+glay = layout.fruchterman.reingold(rt_graph)
+
+plot(rt_graph, layout = glay,
+     vertex.size = 0.5,
+     label.cex = 1,
+     vertex.label.family="sans")
+title("Retweet Network", cex.main=1, col.main="gray95")
 ```
 
 ```{r eval=FALSE, include=FALSE}

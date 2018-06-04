@@ -1,13 +1,6 @@
 ---
-title: "Nachrichten Tweets (04.06.2018)"
-output: 
-  html_document:
-    toc: true
-    toc_float: true
-    theme: "lumen"
-    highlight: "tango"
-    code_folding: hide
-    self_contained: true
+title: "Nachrichten Tweets zum Thema Bamf"
+output: html_document
 ---
 
 ```{r message=FALSE, warning=FALSE}
@@ -17,9 +10,6 @@ library(dplyr)
 library(ggplot2)
 library(rvest)
 library(tidyr)
-library(wordcloud2)
-library(webshot)
-library(htmlwidgets)
 
 rm(list = ls())
 knitr::opts_chunk$set(message=FALSE, warning=FALSE)
@@ -33,32 +23,31 @@ Mycol <- RColorBrewer::brewer.pal(8, "Dark2")
 ```
 
 ```{r eval=FALSE, include=FALSE}
-rt <- search_tweets("filter:news AND lang:de", 
+rt <- search_tweets("bamf AND filter:news AND lang:de", 
                     n=15000, 
                     include_rts = F)
 
-save(rt, file = paste0("../data/", 
+save(rt, file = paste0("../data/",hashtag, 
                        Sys.Date(),".Rda"))
 ```
 
-Die letzten 15000 deutschsprachigen Tweets, die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden über die REST API mit Hilfe des R packetes "rtweet" erhoben. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
+Alle Tweets der vergangenen Tage zum Thema "BAMF", die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden über die REST API mit Hilfe des R packetes "rtweet" erhoben. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
+
 Folgende Variablen sind in unserem Datensatz vorhanden. 
 
 ```{r}
-load("../data/2018-06-04.Rda")
+load("../data/#bamf2018-05-31.Rda")
 
 colnames(rt)
 ```
 
-Die Tweets wurden im folgenden Zeitraum gesendet: 
-
 ```{r fig.width=10}
-ts_plot(rt,"5 minutes") +
+ts_plot(rt,"1 hour") +
   theme(plot.title = element_text(face = "bold")) +
   labs(
     x = NULL, y = NULL,
-    title = "Nachrichten-Tweets",
-    subtitle = "Tweets, die einen Link zu einer Nachrichtenseite beinhalten."
+    title = "Nachrichten-Tweets zum Thema 'BAMF'",
+    subtitle = "Tweets, die einen Link zu einer Nachrichtenseite beinhalten\nund das Wort 'BAMF' beinhaltet haben"
   )
 ```
 
@@ -103,7 +92,7 @@ name_table %>%
     x = NULL,
     y = NULL,
     title = "Top 50 Twitter Nutzer...",
-    subtitle = "...die einen Nachrichtentweet gesendet haben"
+    subtitle = "...die einen Tweet zu 'Bamf' gesendet haben"
   ) 
 ```
 
@@ -127,7 +116,7 @@ hash_table %>%
     x = NULL,
     y = NULL,
     title = "Top 50 Hashtags...",
-    subtitle = "...die im Zusammenhang mit einem Nachrichten-Tweet verwendet wurden"
+    subtitle = "...die im Zusammenhang mit 'Bamf' in einem Tweet verwendet wurden"
   ) 
 ```
 
@@ -150,7 +139,7 @@ mentions_table %>%
     x = NULL,
     y = NULL,
     title = "Top 50 Profil Nennungen...",
-    subtitle = "...die im Zusammenhang mit einem Nachrichten-Tweet verwendet wurden"
+    subtitle = "...die im Zusammenhang mit 'Bamf' in einem Tweet verwendet wurden"
   ) 
 ```
 
@@ -202,18 +191,12 @@ for (i in 1:nrow(check_urls)) {
                               )
                        )
   
-  if("property" %in% colnames(temp.df)) {
-    
-    temp.df <- temp.df %>% 
-      filter(property %in% keeps) %>%
-      select(content, property) %>%
-      mutate(property = gsub("og:","",property)) %>%
-      distinct(property, .keep_all = TRUE) %>%
-      tidyr::spread(property, content)
-  } else {
-      temp.df <- as.data.frame(matrix(nrow = 1,ncol = 1))
-    }
-
+  temp.df <- temp.df %>% 
+  filter(property %in% keeps) %>%
+  select(content, property) %>%
+  mutate(property = gsub("og:","",property)) %>%
+  distinct(property, .keep_all = TRUE) %>%
+  tidyr::spread(property, content)
   
   if("title" %in% colnames(temp.df)) {
     check_urls$title[i] <- temp.df$title
@@ -242,7 +225,7 @@ for (i in 1:nrow(check_urls)) {
 # combine the article information with the original dataframe
 df <- left_join(df, check_urls, by="url1")
 
-save(rt, df, file = paste0("../data/", Sys.Date(),".Rda"))
+save(rt, df, file = paste0("../data/",hashtag, Sys.Date(),".Rda"))
 ```
 
 ### Welche Artikel wurden am häfigsten geteilt?
@@ -260,6 +243,7 @@ df %>%
 df %>%
   filter(!is.na(title)) %>%
   filter(!is.na(hash_clean1)) %>%
+  filter(!grepl("bamf",hash_clean1, ignore.case = T)) %>%
   group_by(site_name, hash_clean1) %>%
   summarise(total = n()) %>%
   arrange(desc(total), .by_group = TRUE) %>%
@@ -275,7 +259,7 @@ df %>%
   )
 ```
 
-### Welche Wörter wurden im Zusammenhang mit den Tweets verwendet?
+### Welche Wörter wurden im Zusammenhang mit diesen Artikeln verwendet?
 
 ```{r}
 df_text <- df %>%
@@ -296,161 +280,22 @@ tidy_df <- df_text %>%
 stopwords <- data_frame(
   word = tm::stopwords("german")
 )
-custom_sw <- c("https","t.co","via","mal","dass","mehr")
+custom_sw <- c("https","t.co","via","mal","dass","mehr","bamf")
 
 tidy_df <- tidy_df %>%
   anti_join(stopwords, by="word") %>%
   filter(! word %in% custom_sw)
 
-sitenames <- unique(tidy_df$site_name)
-```
-
-```{r}
-sitenames[1]
-```
-
-```{r}
 tidy_df %>%
-  filter(site_name == sitenames[1]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
+  group_by(site_name, word) %>%
+  summarise(total = n()) %>%
+  top_n(10, total) %>%
+  ggplot(aes(reorder(word, total),total)) +
+  geom_col(fill = Mycol[1], alpha = 0.6) +
+  labs(x = NULL, y = "") +
+  facet_wrap(~site_name, ncol = 2, scales = "free") +
+  coord_flip()
 ```
 
-```{r}
-sitenames[2]
-```
 
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[2]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
 
-```{r}
-sitenames[3]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[3]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[5]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[5]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[6]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[6]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[7]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[7]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[8]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[8]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[9]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[9]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[10]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[10]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```
-
-```{r}
-sitenames[13]
-```
-
-```{r}
-tidy_df %>%
-  filter(site_name == sitenames[13]) %>%
-  group_by(word) %>%
-  summarise(freq = n()) %>%
-  arrange(desc(freq)) %>%
-  wordcloud2(size=1,
-           color = "random-light", 
-           backgroundColor = "grey") 
-```

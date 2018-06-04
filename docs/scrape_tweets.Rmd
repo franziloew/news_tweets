@@ -31,7 +31,7 @@ save(rt, file = paste0("../data/",hashtag,
                        Sys.Date(),".Rda"))
 ```
 
-Alle Tweets der vergangenen Tage zum Thema "BAMF", die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden über die REST API mit Hilfe des R packetes "rtweet" erhoben. 
+Alle Tweets der vergangenen Tage zum Thema "BAMF", die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden über die REST API mit Hilfe des R packetes "rtweet" erhoben. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
 
 Folgende Variablen sind in unserem Datensatz vorhanden. 
 

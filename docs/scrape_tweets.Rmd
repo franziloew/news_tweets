@@ -12,7 +12,6 @@ output:
 
 ```{r message=FALSE, warning=FALSE}
 library(rtweet)
-library(plotly)
 library(dplyr)
 library(ggplot2)
 library(rvest)
@@ -22,7 +21,7 @@ library(webshot)
 library(htmlwidgets)
 library(igraph)
 library(stringr)
-library(network)
+library(ggraph)
 
 rm(list = ls())
 knitr::opts_chunk$set(message=FALSE, warning=FALSE)
@@ -44,7 +43,7 @@ save(rt, file = paste0("../data/",
                        Sys.Date(),".Rda"))
 ```
 
-Die letzten 15000 deutschsprachigen Tweets, die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden über die REST API mit Hilfe des R packetes "rtweet" erhoben. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
+Die letzten 15000 deutschsprachigen Tweets, die einen Link zu einem Nachrichtenartikel beinhalten. Die Tweets wurden ??ber die REST API mit Hilfe des R packetes "rtweet" erhoben. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
 Folgende Variablen sind in unserem Datensatz vorhanden. 
 
 ```{r}
@@ -64,7 +63,7 @@ ts_plot(rt,"1 minute") +
   )
 ```
 
-### Welche Tweets wurden am häufigsten geteilt?
+### Welche Tweets wurden am h??ufigsten geteilt?
 
 Die top 20 sind: 
 ```{r}
@@ -152,7 +151,30 @@ mentions_table %>%
   ) 
 ```
 
-### User-Netzwerk
+### Visualizing a Graph of Retweet Relationships
+
+```{r}
+filter(rt, retweet_count > 0) %>% 
+  select(screen_name, mentions_screen_name) %>%
+  unnest(mentions_screen_name) %>% 
+  filter(!is.na(mentions_screen_name)) %>% 
+  graph_from_data_frame() -> rt_g
+
+V(rt_g)$node_label <- unname(ifelse(degree(rt_g)[V(rt_g)] > 30, names(V(rt_g)), "")) 
+V(rt_g)$node_size <- unname(ifelse(degree(rt_g)[V(rt_g)] > 30, degree(rt_g), 0)) 
+```
+
+```{r}
+ggraph(rt_g, layout = 'linear', circular = TRUE) + 
+  geom_edge_arc(edge_width=0.125, aes(alpha=..index..)) +
+  geom_node_label(aes(label=node_label, size=node_size),
+                  label.size=0, fill="#ffffff66", segment.colour="springgreen",
+                  color="slateblue", repel=TRUE, fontface="bold") +
+  coord_fixed() +
+  scale_size_area(trans="sqrt") +
+  labs(title="Retweet Relationships", subtitle="Most retweeted screen names labeled. Darkers edges == more retweets. Node size == larger degree") +
+  theme(legend.position="none")
+```
 
 ```{r}
 rt <- rt %>%
@@ -291,7 +313,7 @@ df <- left_join(df, check_urls, by="url1") %>%
 save(rt, df, file = paste0("../data/", Sys.Date(),".Rda"))
 ```
 
-### Welche Artikel wurden am häfigsten geteilt?
+### Welche Artikel wurden am h??figsten geteilt?
 
 ```{r}
 df %>%
@@ -300,7 +322,7 @@ df %>%
   htmlTable::htmlTable(align = "l")
 ```
 
-### Welche Hashtags wurden je News-Website am häufigsten verwendet?
+### Welche Hashtags wurden je News-Website am h??ufigsten verwendet?
 ```{r}
 sitenames <- unique(df$site_name)
 ```
@@ -326,7 +348,7 @@ df %>%
   )
 ```
 
-### Welche Wörter wurden im Zusammenhang mit den Tweets verwendet?
+### Welche W??rter wurden im Zusammenhang mit den Tweets verwendet?
 
 ```{r}
 df_text <- df %>%

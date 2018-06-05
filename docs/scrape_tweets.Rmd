@@ -211,12 +211,13 @@ for (i in seq(length(df$status_id))) {
 
 # Use 100 most tweeted articles
 check_urls <- df %>%
+  filter(!is.na(url1)) %>%
   group_by(url1) %>%
   tally(sort = T) %>%
-  .[1:100,]
+  .[1:200,]
 
 # these are the meta tags we want to scrape
-keeps <- c("og:title","og:site_name","og:description")
+keeps <- c("og:title","og:site_name","og:description","article:publisher")
 
 for (i in 1:nrow(check_urls)) {
   
@@ -240,28 +241,40 @@ for (i in 1:nrow(check_urls)) {
       mutate(property = gsub("og:","",property)) %>%
       distinct(property, .keep_all = TRUE) %>%
       tidyr::spread(property, content)
-  } else {
+    } else {
       temp.df <- as.data.frame(matrix(nrow = 1,ncol = 1))
     }
-
   
-  if("title" %in% colnames(temp.df)) {
-    check_urls$title[i] <- temp.df$title
+  if(ncol(temp.df)>1) {
+     temp.df <- mutate(temp.df, publisher = if (exists('article:publisher', where = temp.df)) gsub("https://www.facebook.com/","",`article:publisher`) else NA)
+    
   } else {
-    check_urls$title[i] <- NA
+    temp.df <- temp.df
   }
-  
-  if("site_name" %in% colnames(temp.df)) {
-    check_urls$site_name[i] <- temp.df$site_name
-  } else {
-    check_urls$site_name[i] <- NA
-  }
-  
-  if("description" %in% colnames(temp.df)) {
-    check_urls$description[i] <- temp.df$description
-  } else {
-    check_urls$description[i] <- NA
-  }
+    
+    if("title" %in% colnames(temp.df)) {
+      check_urls$title[i] <- temp.df$title
+      } else {
+        check_urls$title[i] <- NA
+        }
+    
+    if("site_name" %in% colnames(temp.df)) {
+      check_urls$site_name[i] <- temp.df$site_name
+      } else {
+        check_urls$site_name[i] <- NA
+        }
+    
+    if("description" %in% colnames(temp.df)) {
+      check_urls$description[i] <- temp.df$description
+      } else {
+        check_urls$description[i] <- NA
+        }
+    
+    if("publisher" %in% colnames(temp.df)) {
+      check_urls$publisher[i] <- temp.df$publisher
+      } else {
+        check_urls$publisher[i] <- NA
+        }
   
   print(i)
 
@@ -270,7 +283,10 @@ for (i in 1:nrow(check_urls)) {
 
 ```{r eval=FALSE, include=FALSE}
 # combine the article information with the original dataframe
-df <- left_join(df, check_urls, by="url1")
+df <- left_join(df, check_urls, by="url1") %>%
+  mutate(site_name = if_else(is.na(site_name),
+                             publisher,
+                             site_name)) 
 
 save(rt, df, file = paste0("../data/", Sys.Date(),".Rda"))
 ```
@@ -285,6 +301,10 @@ df %>%
 ```
 
 ### Welche Hashtags wurden je News-Website am häufigsten verwendet?
+```{r}
+sitenames <- unique(df$site_name)
+```
+
 
 ```{r fig.height=16, fig.width=8}
 df %>%
@@ -292,6 +312,7 @@ df %>%
   filter(!is.na(hash_clean1)) %>%
   group_by(site_name, hash_clean1) %>%
   summarise(total = n()) %>%
+  filter(site_name == sitenames[1]) %>%
   arrange(desc(total), .by_group = TRUE) %>%
   slice(1:15) %>%
   ggplot(aes(reorder(hash_clean1,total),total)) +
@@ -326,7 +347,7 @@ tidy_df <- df_text %>%
 stopwords <- data_frame(
   word = tm::stopwords("german")
 )
-custom_sw <- c("https","t.co","via","mal","dass","mehr")
+custom_sw <- c("https","t.co","via","mal","dass","mehr", "rt")
 
 tidy_df <- tidy_df %>%
   anti_join(stopwords, by="word") %>%

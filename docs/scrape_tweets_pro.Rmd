@@ -95,7 +95,7 @@ ts_plot(rt,"1 minute",
 
 ## Retweets
 
-Welche Tweets wurden am häufigsten geteilt? Die top 20 sind: 
+Welche Tweets wurden am häufigsten geteilt? Die top 10 sind: 
 ```{r}
 rt %>%
   filter(is_retweet == FALSE ) %>%
@@ -103,9 +103,9 @@ rt %>%
   group_by(screen_name, text) %>%
   summarise(retweet_count = sum(retweet_count)) %>%
   arrange(desc(retweet_count)) %>%
-  .[1:20,] %>%
-  #knitr::kable(align = "l")
-  htmlTable::htmlTable(align="l")
+  .[1:10,] %>%
+  knitr::kable(align = "l")
+  #htmlTable::htmlTable(align="l")
 ```
 
 ## Hashtags

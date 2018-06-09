@@ -1,5 +1,5 @@
 ---
-title: "Nachrichten Tweets (04.06.2018)"
+title: "Nachrichten Tweets"
 output: 
   html_document:
     toc: true
@@ -7,12 +7,13 @@ output:
     theme: "lumen"
     highlight: "tango"
     code_folding: hide
-    self_contained: true
+    self_contained: false
 ---
 
 ```{r message=FALSE, warning=FALSE}
 rm(list = ls())
 
+## --- Load Packages --- ##
 library(rtweet)
 library(dplyr)
 library(ggplot2)
@@ -25,18 +26,11 @@ library(stringr)
 library(ggraph)
 library(tm)
 library(tidytext)
+library(stringi)
+library(patchwork)
 
 ## ---- My Functions --- ##
-
-# linebreak for long text
-linebreak <- function(s) {
-  gsub('(.{1,70})(\\s|$)', '\\1\n', s)
-}
-
-# count non -na entries in lists
-n <- function(x) {
-  unlist(lapply(x, function(y){length(y) - is.na(y[1])}))
-}
+source("functions.R")
 
 ## --- Set Stylings --- ###
 knitr::opts_chunk$set(message=FALSE, warning=FALSE)
@@ -53,10 +47,22 @@ theme_set(
     )
 )
 
+## --- Global Variables --- ##
+# Define Color
 Mycol <- RColorBrewer::brewer.pal(8, "Dark2")
+
+# Define http pattern
+http <- paste(c("http.*","https.*"), sep = "|")
+
+# Define Stopwords
+stopwords <- data_frame(
+  word =  stopwords("german")
+) %>% rbind(
+  data_frame(word = c("t.co","via","mal","dass","mehr", "amp",
+                      "schon","rt","gibt", "ja", "natürlich"))
+)
 ```
 
-## Start 
 ```{r eval=FALSE, include=FALSE}
 rt <- search_tweets("filter:news AND lang:de", 
                     n=18000)
@@ -65,12 +71,12 @@ save(rt, file = paste0("../data/",
                        Sys.Date(),".Rda"))
 ```
 
-Mit Hilfe des R Packetes "rtweet" wurden über die REST API die 18000 deutschsprachigen Tweets der vergangenen Stunden gesammelt, die einen Link zu einem Nachrichtenartikel beinhalten. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
+Welche Nachrichten-Inhalte werden aktuell bei Twitter diskutiert? Um das herauszufinden, haben wir die aktuellsten deutschsprachigen Tweets gesammelt, die einen Link zu einer Nachrichtenseite beinhalten. Die Tweets wurden mit Hilfe des R Packetes [rtweet](http://rtweet.info) über die REST API ausgelesen. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
 
 Folgende Variablen sind in unserem Datensatz vorhanden. 
 
 ```{r}
-#load("../data/2018-06-04.Rda")
+load("../data/2018-06-09.Rda")
 
 colnames(rt)
 ```
@@ -83,13 +89,13 @@ ts_plot(rt,"1 minute",
   labs(
     x = NULL, y = NULL,
     title = "Nachrichten-Tweets",
-    subtitle = "Tweets, die einen Link zu einer Nachrichtenseite beinhalten."
+    subtitle = paste("Zeitraum:",min(rt$created_at),"bis",max(rt$created_at))
   )
 ```
 
-### Welche Tweets wurden am häufigsten geteilt?
+## Retweets
 
-Die top 20 sind: 
+Welche Tweets wurden am häufigsten geteilt? Die top 20 sind: 
 ```{r}
 rt %>%
   filter(is_retweet == FALSE ) %>%
@@ -98,12 +104,15 @@ rt %>%
   summarise(retweet_count = sum(retweet_count)) %>%
   arrange(desc(retweet_count)) %>%
   .[1:20,] %>%
+  #knitr::kable(align = "l")
   htmlTable::htmlTable(align="l")
 ```
 
 ## Hashtags
 
-```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE}
+Welche Hashtags wurden am häufigsten verwendet? 
+
+```{r fig.width=6, message=FALSE, warning=FALSE}
 rt$hashtags %>%
   unlist() %>%
   na.omit() %>%
@@ -114,32 +123,22 @@ rt$hashtags %>%
 colnames(hash_table) <- c("hashtag", "count")
 
 hash_table %>%
+  top_n(20, count) %>%
   ggplot( aes(reorder(hashtag,count), count)) +
-  geom_col(fill = Mycol[1], alpha = 0.6) +
+  geom_col(fill = Mycol[2], alpha = 0.6) +
   coord_flip() +
   labs(
     x = NULL,
     y = NULL,
-    title = "Top 50 Hashtags...",
-    subtitle = "...die im Zusammenhang mit einem Nachrichten-Tweet verwendet wurden"
+    title = "Top 20 Hashtags"
   ) 
 ```
 
-### Hashtag Wordcloud
-```{r}
-wordcloud2(hash_table, size = 1)
-```
+## Wörter
+
+Welche Wörter wurden am häufigsten verwendet?
 
 ```{r}
-http <- paste(c("http.*","https.*"), sep = "|")
-
-stopwords <- data_frame(
-  word =  stopwords("german")
-) %>% rbind(
-  data_frame(word = c("t.co","via","mal","dass","mehr", 
-                      "schon","rt","gibt"))
-)
-
 rt_clean <- rt %>%
   # First, remove http elements manually
   mutate(stripped_text = gsub(http,"", text)) 
@@ -150,11 +149,13 @@ rt_tidy_words <- rt_clean %>%
   unnest_tokens(word, stripped_text) %>%
   
   # Third, remove stop words from your list of words 
-  anti_join(stopwords)
+  anti_join(stopwords) %>%
+  
+  # Count Word occurences
+  count(word, sort = TRUE) 
 
 # Finally, plot the top 15 words
 rt_tidy_words %>%
- count(word, sort = TRUE) %>%
  top_n(20) %>%
  mutate(word = reorder(word, n)) %>%
  ggplot(aes(x = word, y = n, fill = word)) +
@@ -164,81 +165,54 @@ rt_tidy_words %>%
  coord_flip() +
  labs(y = "Count",
  x = "Unique words",
- title = "Most Common words in all News tweets",
- subtitle = '"ufc220" , "Stipe" and "stipemiocicufc" tops our most used words"') + 
+ title = "Top 20 Wörter") + 
   theme(legend.position = "") 
 ```
 
-## Network Plot
+### Wordcloud
+
 ```{r}
-# remove punctuation, convert to lowercase, add identity for each tweet!
-rt_paired_words <- rt_clean %>%
- dplyr::select(stripped_text) %>%
- unnest_tokens(paired_words, stripped_text, token = "ngrams", n = 2)
-
-# remove stopwords
-rt_separated_words <- rt_paired_words %>%
- separate(paired_words, c("word1", "word2"), sep = " ")
-
-rt_filtered <- rt_separated_words %>%
- filter(!word1 %in% stopwords$word) %>%
- filter(!word2 %in% stopwords$word)
-
-# new bigram counts:
-rt_words_counts <- rt_filtered %>%
- count(word1, word2, sort = TRUE)
+wordcloud2(rt_tidy_words, size = 1)
 ```
 
-```{r fig.height=10, fig.width=10}
-# plot word network
-rt_words_counts %>%
- filter(n >= 50) %>%
- graph_from_data_frame() %>%
- ggraph(layout = "fr") +
- geom_edge_link(aes(edge_alpha = n, edge_width = n)) +
- geom_node_point(color = "darkslategray4", size = 3) +
- geom_node_text(aes(label = name), vjust = 1.8, size = 7) +
- labs(title = "Word Network: News Tweets",
-      subtitle = "Text mining twitter data ",
-      x = "", y = "") 
-```
+## Nachrichten Medien 
 
-## User
+Wir betrachten im nachfolgenden die Tweets, die zu einem der größeren deutschen online Nachrichten gehören. Die grün eingefärbten Balken in der nachfolgenden Abbildung zeigen an, welche Nachrichten-Profile wir genau untersuchen:
 
-```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE}
-rt %>%
+```{r fig.height=10, fig.width=8}
+news <- c("welt", "handelsblatt", "FOCUS_TopNews", 
+          "WELTnews", "ntvde", "abendblatt", "FAZ_NET", "Tagesspiegel",
+          "SPIEGEL_alles", "wiwo", "zeitonline", "BILD")
+news_reg <- paste("welt", "handelsblatt", "FOCUS_TopNews", 
+          "WELTnews", "ntvde", "abendblatt", "FAZ_NET", "Tagesspiegel",
+          "SPIEGEL_alles", "wiwo", "zeitonline", "BILD", sep = "|")
+
+name_table <- rt %>%
   group_by(screen_name) %>%
-  tally(sort = TRUE) -> name_table
+  tally(sort = TRUE) %>%
+  ungroup() %>%
+  mutate(news = ifelse(screen_name %in% news, T, F))
 
-name_table %>%
-  top_n(50, n) %>%
-  ggplot(aes(reorder(screen_name,n),n)) +
-  geom_col(fill = Mycol[1], alpha = 0.6) +
+ggplot(name_table[1:30,],
+       aes(reorder(screen_name,n),n,
+             fill = factor(news))) +
+  geom_col(alpha = 0.7, 
+           show.legend = F) +
+  scale_fill_manual(values = Mycol[c(2,1)]) +
   coord_flip() +
   labs(
     x = NULL,
     y = NULL,
-    title = "Top 50 Twitter Nutzer...",
+    title = "Top 30 Twitter Nutzer...",
     subtitle = "...die einen Nachrichtentweet gesendet haben"
   ) 
 ```
 
-Von diesen Twitter-Usern betrachten wir die Profile der größeren online Nachrichtendienste
+Ein Tweet wird einem Nachrichtenabieter zugewiesen, wenn er (1) entweder direkt von diesem gesendet wurde, oder (2) in einem Tweet verlinkt wurde. 
 
-```{r}
-news <- c("welt", "handelsblatt", "FOCUS_TopNews", 
-          "WELTnews", "ntvde", "abendblatt", "FAZ_NET", "Tagesspiegel",
-          "SPIEGEL_alles", "wiwo", "zeitonline", "BILD")
-
-name_table %>% 
-  filter(screen_name %in% news) %>%
-  transmute(screen_name = screen_name,
-            n_tweets = n) %>%
-  htmlTable::htmlTable(align="l")
-```
-
-```{r}
-rt_news <- rt_clean %>%
+```{r fig.width=8}
+rt_news <- rt %>%
+  mutate(stripped_text = gsub(http,"", text)) %>%
 
   # create variable indicating wich news profile is mentioned
   mutate(mentions = stri_join_list(stri_extract_all_words(mentions_screen_name),
@@ -246,44 +220,73 @@ rt_news <- rt_clean %>%
   
   # filter tweets, that mention these profiles
   filter(screen_name %in% news | str_detect(mentions, paste(news, sep="|"))) %>%
-  mutate(news_name = ifelse(screen_name %in% news, screen_name, mentions))
+  
+  # create new variable to assign news website to the tweet
+  mutate(news_name = ifelse(screen_name %in% news, screen_name, mentions)) %>%
+  mutate(news_name = str_match(news_name, news_reg))
+
+rt_news %>% 
+  group_by(news_name) %>% 
+  tally() %>%
+  ggplot(aes(reorder(news_name, n),n)) +
+  geom_col(fill = Mycol[1], alpha = 0.8) +
+  coord_flip() +
+  labs(x="", title="Nachrichten Tweets",
+       subtitle = "Direkttweet des Mediums oder Nennung in einem Fremdtweet")
 ```
 
-```{r}
-rt_news <- rt_clean %>%
-  filter(screen_name %in% news) %>%
-  # Second, remove punctuation, convert to lowercase, add id for each tweet!
-  dplyr::select(screen_name, stripped_text) %>%
+```{r eval=FALSE, include=FALSE}
+rt_news_tidy <- rt_news %>%
+  # Remove punctuation, convert to lowercase, add id for each tweet!
+  dplyr::select(news_name, stripped_text) %>%
   unnest_tokens(word, stripped_text) %>%
   
   # Third, remove stop words from your list of words 
   anti_join(stopwords) %>%
   
-  group_by(screen_name, word) %>%
-  count(word)
+  group_by(news_name, word) %>%
+  count(word) %>%
+  ungroup()
 
-# Finally, plot the top 15 words
-rt_tidy_words %>%
- count(word, sort = TRUE) %>%
- top_n(20) %>%
- mutate(word = reorder(word, n)) %>%
- ggplot(aes(x = word, y = n, fill = word)) +
- geom_col(fill = Mycol[2],
-          alpha = 0.6) +
- xlab(NULL) +
- coord_flip() +
- labs(y = "Count",
- x = "Unique words",
- title = "Most Common words in all News tweets",
- subtitle = '"ufc220" , "Stipe" and "stipemiocicufc" tops our most used words"') + 
-  theme(legend.position = "") 
-
+# Generate a wordcloud for each news
 for (i in news) {
-  rt_news %>%
-    filter(screen_name == i) -> temp
+  
+  rt_news_tidy %>%
+    filter(news_name == i) %>%
+    filter(!grepl(i, word, ignore.case = T)) %>%
+    select(word, n) -> temp
+  
+  # htmlwidgets::saveWidget(wordcloud2(temp),
+  #                         selfcontained = F,
+  #                         file = paste0("wordcloud",i,".html"), 
+  #                         title = paste(i))
     
-  wordcloud2()
 }
 ```
 
+Uns interessiert vorallem, wie Themen bei den verschiedenen Medien besprochen werden. Hierfür gucken wir uns ein Wörter-Netzwerk an, welches anzeigt, welche Wörter wie häufig zusammen verwendet werden.
 
+```{r fig.height=14, fig.width=14}
+p1 <- word_network(news[1])
+p2 <- word_network(news[2])
+p3 <- word_network(news[3])
+p4 <- word_network(news[4])
+p5 <- word_network(news[5])
+p6 <- word_network(news[6])
+p7 <- word_network(news[7])
+p8 <- word_network(news[8])
+p9 <- word_network(news[9])
+#p10 <- word_network(news[10])
+p11 <- word_network(news[11])
+p12 <- word_network(news[12])
+
+p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+```
+
+```{r fig.height=14, fig.width=14}
+p5 + p6 + p7 + p8 + plot_layout(ncol = 2)
+```
+
+```{r fig.height=14, fig.width=14}
+p9 + p11 + p12 + plot_layout(ncol = 2)
+```

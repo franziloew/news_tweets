@@ -24,7 +24,7 @@ word_network <- function(x) {
   
   # plot word network
   news_word_counts %>%
-    filter(n > 1) %>%
+    filter(n > 2) %>%
     graph_from_data_frame() %>%
     ggraph(layout = "fr") +
     geom_edge_link(aes(edge_alpha = n, edge_width = n)) +

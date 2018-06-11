@@ -13,7 +13,7 @@ word_network <- function(x) {
   
   # create dataframe
   news_word_counts <- rt_news %>%
-    filter(news_name == x) %>%
+    filter(newsName == x) %>%
     dplyr::select(stripped_text) %>%
     unnest_tokens(paired_words, 
                   stripped_text, token = "ngrams", n = 2) %>%
@@ -22,16 +22,18 @@ word_network <- function(x) {
     filter(!word2 %in% stopwords$word) %>%
     count(word1, word2, sort = TRUE)
   
+  lower <- quantile(news_word_counts$n, probs = 0.99)
+  
   # plot word network
   news_word_counts %>%
-    filter(n > 2) %>%
+    filter(n > lower) %>%
     graph_from_data_frame() %>%
     ggraph(layout = "fr") +
     geom_edge_link(aes(edge_alpha = n, edge_width = n)) +
     geom_node_point(color = Mycol[2], size = 3) +
     geom_node_text(aes(label = name), 
                    color = Mycol[1],
-                   vjust = 1.8, size = 4) +
+                   vjust = 1.8, size = 5) +
     labs(title = paste(x),
          x = "", y = "") +
     theme(axis.text = element_blank(),

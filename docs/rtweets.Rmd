@@ -25,11 +25,9 @@ library(wordcloud2)
 library(igraph)
 library(ggraph)
 library(stringr)
-library(ggraph)
 library(tm)
 library(tidytext)
 library(stringi)
-library(patchwork)
 
 ## ---- My Functions --- ##
 source("functions.R")
@@ -89,7 +87,6 @@ colnames(rt)
 ## Zeitraum
 ```{r fig.width=8}
 rt %>%
-  mutate(created_at = as.Date(created_at)) %>%
   ts_plot("30 minutes",
         color = Mycol[3]) +
   theme(plot.title = element_text(face = "bold")) +
@@ -115,9 +112,6 @@ rt %>%
   htmlTable::htmlTable(align="l")
 ```
 
-## Hashtags
-
-Welche Hashtags wurden am häufigsten verwendet? 
 
 ```{r fig.width=6, message=FALSE, warning=FALSE}
 rt$hashtags %>%
@@ -141,9 +135,6 @@ hash_table %>%
   ) 
 ```
 
-## Wörter
-
-Welche Wörter wurden am häufigsten verwendet?
 
 ```{r fig.width=6}
 rt_clean <- rt %>%
@@ -176,7 +167,7 @@ rt_tidy_words %>%
   theme(legend.position = "") 
 ```
 
-### Wordcloud
+## Wordcloud (ges. Wörter)
 
 ```{r}
 wordcloud2(rt_tidy_words, size = 1, color = "random-light", backgroundColor = "grey")
@@ -207,7 +198,7 @@ ggplot(name_table[1:30,],
              fill = factor(news))) +
   geom_col(alpha = 0.7, 
            show.legend = F) +
-  scale_fill_manual(values = Mycol[c(1,2)]) +
+  scale_fill_manual(values = Mycol[c(2,1)]) +
   coord_flip() +
   labs(
     x = NULL,

@@ -1,5 +1,5 @@
 ---
-title: "Nachrichten Tweets"
+title: "Wöchentliche Wordcloud"
 author: "Franziska Löw"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
@@ -12,22 +12,20 @@ output:
     self_contained: false
 ---
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
 
 ## --- Load Packages --- ##
 library(rtweet)
 library(dplyr)
 library(ggplot2)
-library(rvest)
 library(tidyr)
-library(wordcloud2)
-library(igraph)
-library(ggraph)
-library(stringr)
 library(tm)
+library(wordcloud2)
+library(stringr)
 library(tidytext)
 library(stringi)
+library(htmlwidgets)
 
 ## ---- My Functions --- ##
 source("functions.R")
@@ -76,12 +74,8 @@ save(rt, file = paste0("../data/",
 
 Welche Nachrichten-Inhalte werden aktuell bei Twitter diskutiert? Um das herauszufinden, haben wir die aktuellsten deutschsprachigen Tweets gesammelt, die einen Link zu einer Nachrichtenseite beinhalten. Die Tweets wurden mit Hilfe des R Packetes [rtweet](http://rtweet.info) über die REST API ausgelesen. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
 
-Folgende Variablen sind in unserem Datensatz vorhanden. 
-
 ```{r}
 load("../data/2018-06-11.Rda")
-
-colnames(rt)
 ```
 
 ```{r fig.width=8}
@@ -96,12 +90,13 @@ rt %>%
   ) 
 ```
 
-
-```{r fig.width=6}
+```{r eval=FALSE, fig.width=6, include=FALSE}
 rt_clean <- rt %>%
-  # First, remove http elements manually
-  mutate(stripped_text = gsub(http,"", text)) 
-  
+  # Remove http elements manually
+  mutate(stripped_text = gsub(http,"", text)) %>%
+  # Remove numers
+  mutate(stripped_text =gsub('[[:digit:]]+', '', stripped_text))
+
 rt_tidy_words <- rt_clean %>%
   # Second, remove punctuation, convert to lowercase, add id for each tweet!
   dplyr::select(stripped_text) %>%
@@ -113,20 +108,16 @@ rt_tidy_words <- rt_clean %>%
   # Count Word occurences
   count(word, sort = TRUE) 
 
-wordcloud2(rt_tidy_words, size = 1, color = "random-light", backgroundColor = "grey")
-
-library(htmlwidgets)
-install.packages("webshot")
-webshot::install_phantomjs()
-library(wordcloud2)
-hw = wordcloud2(demoFreq,size = 3)
-saveWidget(hw,"1.html",selfcontained = F)
+w1 <- wordcloud2(rt_tidy_words, size = 1)
+saveWidget(w1,"1.html",selfcontained = F)
 webshot::webshot("1.html","1.png",vwidth = 700, vheight = 500, delay =10)
 ```
 
+# Gesamte Tweets
+
 ![](1.png)
 
-```{r fig.height=10, fig.width=6}
+```{r eval=FALSE, fig.height=10, fig.width=6, include=FALSE}
 news <- c("welt", "FOCUS_TopNews", "sternde", "faznet", 
           "focusonline", "SZ", "SZ_TopNews",
           "WELTnews", "FAZ_NET", "SPIEGEL_alles", "zeitonline", "BILD")
@@ -136,6 +127,8 @@ news_reg <- paste("welt", "FOCUS_TopNews", "sternde", "faznet",
 
 rt_news <- rt %>%
   mutate(stripped_text = gsub(http,"", text)) %>%
+   # Remove numers
+  mutate(stripped_text =gsub('[[:digit:]]+', '', stripped_text)) %>%
 
   # create variable indicating wich news profile is mentioned
   mutate(mentions = stri_join_list(stri_extract_all_words(mentions_screen_name),
@@ -147,18 +140,25 @@ rt_news <- rt %>%
   # create new variable to assign news website to the tweet
   mutate(newsName = ifelse(screen_name %in% news, screen_name, mentions)) %>%
   mutate(newsName = str_match(newsName, news_reg))
-```
 
-```{r eval=FALSE, include=FALSE}
+rt_news <- rt_news %>%
+  mutate(newsName = ifelse(grepl("sz",newsName, ignore.case = T), "SZ", newsName),
+         newsName = ifelse(grepl("welt",newsName, ignore.case = T), "Welt", newsName),
+         newsName = ifelse(grepl("focus",newsName, ignore.case = T), "FOCUS", newsName),
+         newsName = ifelse(grepl("faz",newsName, ignore.case = T), "FAZ", newsName)
+         )
+
+news <- unique(rt_news$newsName)
+
 rt_news_tidy <- rt_news %>%
   # Remove punctuation, convert to lowercase, add id for each tweet!
-  dplyr::select(news_name, stripped_text) %>%
+  dplyr::select(newsName, stripped_text) %>%
   unnest_tokens(word, stripped_text) %>%
   
   # Third, remove stop words from your list of words 
   anti_join(stopwords) %>%
   
-  group_by(news_name, word) %>%
+  group_by(newsName, word) %>%
   count(word) %>%
   ungroup()
 
@@ -166,22 +166,43 @@ rt_news_tidy <- rt_news %>%
 for (i in news) {
   
   rt_news_tidy %>%
-    filter(news_name == i) %>%
-    filter(!grepl(i, word, ignore.case = T)) %>%
+    filter(newsName == i) %>%
+    filter(!grepl(news_reg, 
+                  word, ignore.case = T)) %>%
+    filter(n > 3) %>%
     select(word, n) -> temp
   
-  print(wordcloud2(temp))
-  # htmlwidgets::saveWidget(wordcloud2(temp),
-  #                         selfcontained = F,
-  #                         file = paste0("wordcloud",i,".html"), 
-  #                         title = paste(i))
+  w_temp <- wordcloud2(temp, size = 1)
   
-  
-    
+  saveWidget(w_temp,paste0(i,".html"),selfcontained = F)
+  webshot::webshot(paste0(i,".html"),paste0(i,".png"),
+                   vwidth = 700, vheight = 500, delay =10)
 }
+
 ```
 
+# Medium 
 
+## BILD
+![](BILD.png)
 
+## Die Welt
+![](Welt.png)
 
+## FAZ
+![](FAZ.png)
 
+## FOCUS
+![](FOCUS.png)
+
+## Spiegel Online
+![](Spiegel_alles.png)
+
+## Stern.de
+![](sternde.png)
+
+## SZ
+![](SZ.png)
+
+## Zeit Online
+![](zeitonline.png)

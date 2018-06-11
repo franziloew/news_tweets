@@ -32,11 +32,13 @@ word_network <- function(x) {
     geom_edge_link(aes(edge_alpha = n, edge_width = n)) +
     geom_node_point(color = Mycol[2], size = 3) +
     geom_node_text(aes(label = name), 
+                   repel = TRUE,
                    color = Mycol[1],
                    vjust = 1.8, size = 5) +
     labs(title = paste(x),
          x = "", y = "") +
     theme(axis.text = element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank(),
+          plot.title = element_text(size = 18))
   
 }

@@ -266,7 +266,7 @@ for (i in news) {
 
 Uns interessiert vorallem, wie Themen bei den verschiedenen Medien besprochen werden. Hierfür gucken wir uns ein Wörter-Netzwerk an, welches anzeigt, welche Wörter wie häufig zusammen verwendet werden. Auf diese Weise wird erkennbar, welche Themen wie miteinander verknüpft sind.
 
-```{r fig.height=12, fig.width=12}
+```{r fig.height=14, fig.width=14}
 rt_news <- rt_news %>%
   mutate(newsName = ifelse(grepl("sz",newsName, ignore.case = T), "Süddeutsche Zeitung", newsName),
          newsName = ifelse(grepl("welt",newsName, ignore.case = T), "Die Welt", newsName),

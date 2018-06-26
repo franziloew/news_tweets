@@ -230,7 +230,7 @@ sentDF <- rt_clean %>%
 ### Wordclouds
 
 #### Positive Wörter
-```{r}
+```{r eval=FALSE, include=FALSE}
 w <- sentDF %>%
   filter(positive_d == 1) %>%
   count(word) %>%
@@ -243,7 +243,7 @@ webshot::webshot("pos_germex.html","pos_germex.png",vwidth = 1000, vheight = 800
 ![](pos_germex.png)
 
 #### Negative wörter
-```{r}
+```{r eval=FALSE, include=FALSE}
 w<- sentDF %>%
   filter(negative_d == 1) %>%
   count(word) %>%
@@ -321,7 +321,7 @@ grouped <- ggplot(animate) +
        subtitle = "Durchschnittlicher Wert der Tweets, die den Hashtag #GERMEX enhielten",
        caption = "Die Tweets wurden über die Twitter REST API mit Hilfe des R-Packetes rtweet gesammelt")
 
-gganimate(grouped, interval=.3, "gerswe.gif", ani.width=800, ani.height=400)
+gganimate(grouped, interval=.3, "germex.gif", ani.width=800, ani.height=400)
 ```
 
 

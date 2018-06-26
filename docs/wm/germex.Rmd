@@ -4,8 +4,6 @@ author: "Franziska Löw"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
-    toc: true
-    toc_float: true
     theme: "lumen"
     highlight: "tango"
     code_folding: hide
@@ -119,8 +117,7 @@ rt_small %>%
   summarise(retweet_count = sum(retweet_count)) %>%
   arrange(desc(retweet_count)) %>%
   .[1:10,] %>%
-  #knitr::kable(align = "l")
-  htmlTable::htmlTable(align="l")
+    htmlTable::htmlTable(align="l")
 ```
 
 ## Wordcloud
@@ -191,7 +188,7 @@ word_network(rt_clean)
 
 # Sentiment Analyse
 
-[SentimentWortschatz](http://wortschatz.uni-leipzig.de/de/download), or SentiWS for short, is a publicly available German-language resource for sentiment analysis, opinion mining etc. It lists positive and negative polarity bearing words weighted within the interval of [-1; 1] plus their part of speech tag, and if applicable, their inflections. The current version of SentiWS (v1.8b) contains 1,650 positive and 1,818 negative words, which sum up to 15,649 positive and 15,632 negative word forms incl. their inflections, respectively. It not only contains adjectives and adverbs explicitly expressing a sentiment, but also nouns and verbs implicitly containing one.
+Lexikon Ansatz unter Verwendung des [SentimentWortschatz](http://wortschatz.uni-leipzig.de/de/download)
 
 ```{r}
 sent <- c(
@@ -271,7 +268,7 @@ sentDF.grouped %>%
   arrange(desc(mean_value)) %>%
   select(screen_name, text, mean_value, created_at) %>%
   .[1:10,] %>%
-  htmlTable::htmlTable(align="l")
+    htmlTable::htmlTable(align="l")
 ```
 
 #### Top 10 negative Tweets
@@ -284,19 +281,7 @@ sentDF.grouped %>%
   htmlTable::htmlTable(align="l")
 ```
 
-```{r fig.height=6, fig.width=8}
-sentDF.grouped %>%
-  mutate(time = as.POSIXct(substr(created_at,1,16))) %>%
-  group_by(time) %>%
-  summarise(mean_value = mean(mean_value)) %>%
-  ggplot() +
-  geom_line(aes(time, mean_value),
-             color = Mycol[3]) +
-  geom_vline(xintercept = gamestart, color = Mycol[2], linetype = 2) +  
-  geom_vline(xintercept = gameend, color = Mycol[2], linetype = 2) +
-  labs(y = "", x="", title = "Durchschnittlicher Sentiment Wert")
-
-```
+### Sentiment im Zeitveraluf
 
 ```{r eval=FALSE, include=FALSE}
 sentDF.grouped %>%
@@ -324,4 +309,5 @@ grouped <- ggplot(animate) +
 gganimate(grouped, interval=.3, "germex.gif", ani.width=800, ani.height=400)
 ```
 
+![](germex.gif)
 

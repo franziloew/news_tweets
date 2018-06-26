@@ -4,8 +4,6 @@ author: "Franziska Löw"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
-    toc: true
-    toc_float: true
     theme: "lumen"
     highlight: "tango"
     code_folding: hide
@@ -120,8 +118,7 @@ rt_small %>%
   summarise(retweet_count = sum(retweet_count)) %>%
   arrange(desc(retweet_count)) %>%
   .[1:10,] %>%
-  #knitr::kable(align = "l")
-  htmlTable::htmlTable(align="l")
+  knitr::kable(align = "l")
 ```
 
 ## Wordcloud
@@ -287,8 +284,6 @@ sentDF.grouped %>%
   .[1:10,] %>%
   htmlTable::htmlTable(align="l")
 ```
-
-
 
 ### Sentiment im Zeitveraluf
 

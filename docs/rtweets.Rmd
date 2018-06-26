@@ -65,13 +65,15 @@ stopwords <- data_frame(
 ```
 
 ```{r eval=FALSE, include=FALSE}
-rt <- search_tweets("filter:news AND lang:de", 
+rt <- search_tweets("#GERSWE AND lang:de", 
                     include_rts = F,
                     retryonratelimit = T,
                     n=200000)
 
-save(rt, file = paste0("../data/", 
-                       Sys.Date(),".Rda"))
+#save(rt, file = paste0("../data/", 
+#                       Sys.Date(),".Rda"))
+
+save(rt, file = "gerswe.Rda")
 ```
 
 Welche Nachrichten-Inhalte werden aktuell bei Twitter diskutiert? Um das herauszufinden, haben wir die aktuellsten deutschsprachigen Tweets gesammelt, die einen Link zu einer Nachrichtenseite beinhalten. Die Tweets wurden mit Hilfe des R Packetes [rtweet](http://rtweet.info) über die REST API ausgelesen. Der gesamte Code ist [hier](https://github.com/franziloew/news_tweets/tree/master/docs) einzusehen. 
@@ -87,7 +89,9 @@ colnames(rt)
 ## Zeitraum
 ```{r fig.width=8}
 rt %>%
-  ts_plot("30 minutes",
+  filter(created_at > as.POSIXct("2018-06-23 19:00:00")) %>%
+    filter(created_at < as.POSIXct("2018-06-23 23:30:00")) %>%
+  ts_plot("1 minute",
         color = Mycol[3]) +
   theme(plot.title = element_text(face = "bold")) +
   labs(
